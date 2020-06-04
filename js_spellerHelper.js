@@ -6,10 +6,13 @@
 // Можно отключить проверку на страницах, подпадающих под условие - массив globalPathBlacklist или персонально для каждого домена, в autoDomains или в самом виджете
 // Также можно принудительно включить автопроверку на всех доменах, для этого нужно раскомментировать строку под объявлением autoDomains
 // Поддерживаются настройки запросов к Спеллеру. Объект spellerOptions
+// Текст можно собирать двумя путями - через innerText и через обработку innerHTML в воркере. По умолчанию используем второй способ, переключить можно переменной extractHTML
+// Если переключаем на простое извлечение текста, рекомендуется держать переменную tryRecoverSents в true, для предотвращения склейки слов из граничащих друг с другом элементов
 //
 // При первом открытии виджета / при автоматическом запуске собирается текст с каждого из выбранных селекторов и передаётся в воркер. В воркере текст оптимизируется, разбивается на предложения, формируется в фрагменты. После получения ответа от Спеллера возвращает объект с ошибками.
 // Строим разметку в основном потоке.
 // Ко вниманию принимаются только ошибки, помеченные 'code = 1'. Иногда приходят с кодом = 4, но мной замечены такие срабатывания только на emoji, поэтому отбрасываем их.
+// Также можно игнормровать ошибки, не содержащие кириллицу (часто Спеллер возвращает англоязычные слова, несмотря на флаг 'lang'). Включением переменной skipNotCyr можно фильтровать слова без кириллицы. Также она автоматически переводится в true, если в spellerOptions.lang отсутствует 'en'
 
 
 // Загрузчик, сработает если состояние DOMContentLoaded либо уже load
@@ -46,12 +49,23 @@
 		'meta[name="description"]': 'content', // непустое значение ключа воспринимается как указание извлекать не текст, а атрибут этого элемента
 	};
 
-	var postLength = 9000; // length of post-requests
+	var skipNotCyr = false; // Пропускать ошибки, не содержащие кириллицу
+	if (spellerOptions.lang.indexOf('en') < 0){
+		// если в опциях Спеллера en не значится, подавлять вывод ошибок без кириллицы
+		skipNotCyr = true;
+	}
+
+	var tryRecoverSents = false; // Пытаться разбить "словоСлово" на два предложения
+
+	var extractHTML = true; // Альтернатива предыдущему - извлекаем html, в воркере заменяем теги на пробелы
+
+	var postLength = 9000; // Длина текста в одном POST-запросе
 
 	// предопределяем, чтобы потом закешировать сюда выборку
 	var widget = false;
 	var settingsWind = false;
 	var resultsWind = false;
+
 
 
 	/**
@@ -63,6 +77,7 @@
 		return new Promise(function(resolve, reject){
 			var selector = obj.selector || false;
 			var attr = obj.attribute || false;
+			var exHTML = obj.extractHTML || false;
 
 			if (!selector){
 				if (debug){
@@ -85,9 +100,23 @@
 			if (attr && el.hasAttribute(attr)){
 				result = el.getAttribute(attr);
 			} else {
-				// Если мы просто заберём textContent, будет куча склеенного текста.
-				// А вот innerText вернёт с переносами
-				result = el.innerText;
+				if (exHTML){
+					// вернём html, но без служебных элементов
+					var tempEl = document.createElement('div');
+					tempEl.innerHTML = el.innerHTML;
+					var tempQuery = tempEl.querySelectorAll('iframe, script, style, img');
+					if (tempQuery.length > 0){
+						for (var i = 0; i < tempQuery.length; i++){
+							tempQuery[i].parentNode.removeChild(tempQuery[i]);
+						}
+					}
+					result = tempEl.innerHTML;
+					tempEl.innerHTML = '';
+				} else {
+					// Если мы просто заберём textContent, будет куча склеенного текста.
+					// А вот innerText вернёт с переносами
+					result = el.innerText;
+				}
 			}
 
 			if (!result || result === null){
@@ -126,6 +155,36 @@
 					txt = txt.replace(/(\r\n|\r|\n)+/g, '$1');
 				}
 				resolve(txt);
+			});
+		}
+
+		/**
+		* Удаляем множественные пробелы
+		*/
+		var removeMultipleSpaces = function(txt){
+			return new Promise(function(resolve, reject){
+				if (txt){
+					txt = txt.replace(/(\ ){2,}/g, ' ');
+				}
+				resolve(txt);
+			});
+		}
+
+		/**
+		* В принятом html заменяет теги на пробелы. Пытаемся предотвратить склейку слов
+		*/
+		var preventGluing = function(html){
+			return new Promise(function(resolve, reject){
+				if (!html){
+					if (debug){
+						console.log('  worker::preventGluing(): html is empty');
+					}
+
+					reject(false);
+				}
+
+				html = html.replace(/<[^>]+>/gm, " ");
+				resolve(html);
 			});
 		}
 
@@ -299,6 +358,9 @@
 			spellerOpts = data.spellerOpts || false;
 			var postLength = data.postLength || 3000;
 			var selector = data.selector || false;
+			var skipNotCyr = data.skipNotCyr || false;
+			var tryRecoverSents = data.tryRecoverSents || false;
+			var isHTML = data.isHTML || true; // по умолчанию пытаемся чистить html-теги
 
 			var txt = data.text || false;
 			if (!txt){
@@ -314,14 +376,49 @@
 				txt = removeMultipleBreaks(txt);
 				resolve(txt);
 			}).then(function(txt){
-				txt = fixSents(txt);
-				return txt;
+				return new Promise(function(resolve, reject){
+					if (isHTML){
+						var p = preventGluing(txt);
+						p.then(function(html){
+							resolve(html);
+						});
+					} else {
+						resolve(txt);
+					}
+				});
 			}).then(function(txt){
-				var txtArr = cleanTxtArray(txt);
-				return txtArr;
+				return new Promise(function(resolve, reject){
+					if (tryRecoverSents){
+						var p = fixSents(txt);
+						p.then(function(txt){
+							resolve(txt);
+						});
+					} else {
+						resolve(txt);
+					}
+				});
+			}).then(function(txt){
+				return new Promise(function(resolve, reject){
+					var pro = removeMultipleSpaces(txt);
+					pro.then(function(txt){
+						resolve(txt);
+					});
+				});
+
+			}).then(function(txt){
+				return new Promise(function(resolve, reject){
+					var pro = cleanTxtArray(txt);
+					pro.then(function(txtArr){
+						resolve(txtArr);
+					});
+				});
 			}).then(function(txtArr){
-				var txtArr = fillBatch(txtArr, postLength);
-				return txtArr;
+				return new Promise(function(resolve, reject){
+					var pro = fillBatch(txtArr, postLength);
+					pro.then(function(txtArr){
+						resolve(txtArr);
+					});
+				});
 			}).then(function(txtArr){
 				return new Promise(function(resolve, reject){
 					if (txtArr && txtArr.length){
@@ -332,16 +429,62 @@
 						var promisesArr = [];
 
 						for (var i = 0; i < txtArr.length; i++){
-							var p = new Promise(function(resolve, reject){
+							var pr = new Promise(function(resolve, reject){
 								check = spellerSend(txtArr[i]);
 								check.then(function(checkData){
-									for (var k = 0; k < checkData.length; k++){
-										checksArr.push(checkData[k]);
+
+									if (checkData.length == 0){
+										resolve(); // не вернулось ошибок
 									}
-									resolve(checkData);
+
+									var tempArr = [];
+
+									// проверить на нахождение такой ошибки в массиве
+									for (var k = 0; k < checkData.length; k++){
+										var pr = new Promise(function(resolve, reject){
+											var word = checkData[k].word;
+
+											var validateFailed = false; // Перед каждым типом проверки будем чекать этот флаг. Если одна валидация уже завалена, в остальных нет смысла
+
+											// Здесь же проверим слово на содержание кириллицы
+											// В зависимости от настроек, будем отбрасывать, если нет кириллицы
+											if (skipNotCyr && !validateFailed){
+												if ( (word.match(/([а-яА-Я])/)) === null){
+													// нет кириллицы, завершаем
+													if (debug){
+														console.log('В ошибке «'+word+'» нет кириллицы - не показываем её');
+													}
+													validateFailed = true;
+												}
+											}
+
+											if (!validateFailed){
+												var result = checksArr.filter(function(obj){
+													if (obj.word == word){
+														return true;
+													} else {
+														return false;
+													}
+												});
+
+												if (result.length == 0){
+													checksArr.push(checkData[k]);
+												} else {
+													validateFailed = true;
+												}
+											}
+
+											resolve();
+										});
+										tempArr.push(pr);
+									}
+
+									Promise.all(tempArr).then(function(){
+										resolve();
+									});
 								});
 							});
-							promisesArr.push(p);
+							promisesArr.push(pr);
 						}
 
 						Promise.all(promisesArr).then(function(){
@@ -350,6 +493,7 @@
 					} else {
 						reject(false);
 					}
+					resolve();
 				});
 			}).then(function(){
 				var backObj = {
@@ -734,6 +878,8 @@
 #spellerMainWrap textarea{
     width: 100%;
     padding: 3px 5px 5px;
+    max-width: 100%;
+    min-width: 100%;
 }
 #spellerMainWrap label{
 	display: inline-block;
@@ -1360,6 +1506,16 @@
 	}
 
 	/**
+	* Обновляет счетчик только в том случае, если он еще не был обновлён ни разу
+	*/
+	var initMistakesCounter = function(){
+		if(document.querySelectorAll('#spellerMainWrap #speller__buttons .mistCount')[0].textContent == '-'){
+			updateMistakesCounter();
+		}
+	}
+
+
+	/**
 	* Обработчик ответа воркера
 	*/
 	worker.addEventListener('message', function(e){
@@ -1383,91 +1539,94 @@
 			for (var i = 0; i < e.data.fixes.length; i++){
 				var p = new Promise(function(resolve, reject){
 					var item = e.data.fixes[i];
-
 					if (item.code !== 1){
-						reject(); // закрываем промис, не добавляя ошибку
-					}
+						resolve(); // закрываем промис, не добавляя ошибку
+					} else {
+						var ignoreMistakes = getIgnoredList();
+						ignoreMistakes.then(function(ignoredList){
+							// получили список игнорируемых ошибок (Array)
+							// теперь нужно проверить ошибку на присутствие в стоп-листе
+							if (ignoredList.length > 0){
 
-					var ignoreMistakes = getIgnoredList();
-					ignoreMistakes.then(function(ignoredList){
-						// получили список игнорируемых ошибок (Array)
-						// теперь нужно проверить ошибку на присутствие в стоп-листе
-						if (ignoredList.length > 0){
-
-							// игнорируем ошибку
-							if (! (ignoredList.includes(item.word))){
+								// игнорируем ошибку
+								if (! (ignoredList.includes(item.word))){
+									resultArr.push({word: item.word, 's': item.s[0]});
+								}
+								resolve();
+							} else {
 								resultArr.push({word: item.word, 's': item.s[0]});
+								resolve();
 							}
-							resolve();
-						} else {
-							resultArr.push({word: item.word, 's': item.s[0]});
-							resolve();
-						}
-					});
+						});
+					}
 				});
 				tempArr.push(p);
 			}
 
-			Promise.all(tempArr).then(function(){
-				if (resultArr.length){
+			// если после фильтрации остались ошибки
+			if (tempArr.length){
+				Promise.all(tempArr).then(function(){
+					if (resultArr.length){
 
-					// управление полученными результатами
-					// пушим в интерфейс
-					// сначала проверяем его наличие, если нет - создаём. Затем добавляем элементы.
-					var isInterfaceExists = checkInterfaceExist();
-					isInterfaceExists.then(function(isExists){
-						return new Promise(function(resolve, reject){
-							if (!isExists){
-								var interface = createInterface();
-								interface.then(function(){
+						// управление полученными результатами
+						// пушим в интерфейс
+						// сначала проверяем его наличие, если нет - создаём. Затем добавляем элементы.
+						var isInterfaceExists = checkInterfaceExist();
+						isInterfaceExists.then(function(isExists){
+							return new Promise(function(resolve, reject){
+								if (!isExists){
+									var interface = createInterface();
+									interface.then(function(){
+										resolve(true);
+									});
+								} else {
 									resolve(true);
-								});
-							} else {
-								resolve(true);
+								}
+							});
+
+						}).then(function(){
+							// формируем разметку для каждой ошибки, засылаем её в интерфейс
+
+							// шаблон режется на две части
+							var detailStart = `<details id="det${(Math.random()*1010|0)}" open>
+								<summary data-selector="${e.data.selector}">${e.data.selector}: ${resultArr.length} ошибок</summary>
+								<div class="mistakeDetails">`;
+							var detailsEnd = `</div>
+								</details>`;
+							var mistakes = '';
+
+							var tempArr = [];
+							for (var i = 0; i < resultArr.length; i++){
+								var tempFunc = function(obj, index){
+									return new Promise(function(resolve, reject){
+										var str = `<p>"${resultArr[i].word}" -> "${resultArr[i].s}"<span class="ignoreMistake" data-mist="${resultArr[i].word}" title="Добавить в игнорируемые"></span></p>`;
+										mistakes += str;
+										resolve(str);
+									});
+								}
+								tempArr.push(tempFunc(resultArr[i], i));
 							}
-						});
 
-					}).then(function(){
-						// формируем разметку для каждой ошибки, засылаем её в интерфейс
-
-						// шаблон режется на две части
-						var detailStart = `<details id="det${(Math.random()*1010|0)}" open>
-							<summary data-selector="${e.data.selector}">${e.data.selector}: ${resultArr.length} ошибок</summary>
-							<div class="mistakeDetails">`;
-						var detailsEnd = `</div>
-							</details>`;
-						var mistakes = '';
-
-						var tempArr = [];
-						for (var i = 0; i < resultArr.length; i++){
-							var tempFunc = function(obj, index){
-								return new Promise(function(resolve, reject){
-									var str = `<p>"${resultArr[i].word}" -> "${resultArr[i].s}"<span class="ignoreMistake" data-mist="${resultArr[i].word}" title="Добавить в игнорируемые"></span></p>`;
-									mistakes += str;
-									resolve(str);
+							Promise.all(tempArr).then(function(){
+								// Сформировали разметку для всех ошибок, отправляем её
+								pushMistakes(detailStart+mistakes+detailsEnd).then(function(){
+									// и затем обновляем счётчик ошибок
+									updateMistakesCounter();
 								});
-							}
-							tempArr.push(tempFunc(resultArr[i], i));
-						}
-
-						Promise.all(tempArr).then(function(){
-							// Сформировали разметку для всех ошибок, отправляем её
-							pushMistakes(detailStart+mistakes+detailsEnd).then(function(){
-								// и затем обновляем счётчик ошибок
-								updateMistakesCounter();
 							});
 						});
-					});
-				} else {
-					// длина результатов после фильтрации = 0. Иногда нужно этот ноль тоже пушить в счётчик.
-					updateMistakesCounter();
-				}
-			});
+					} else {
+						// длина результатов после фильтрации = 0. Иногда нужно этот ноль тоже пушить в счётчик.
+						updateMistakesCounter();
+					}
+				});
+			} else {
+				// после фильтрации ошибок не осталось
+				initMistakesCounter();
+			}
 		} else {
 			// нужно апдейтить результат даже нулём, если в счётчике изначально прочерк (когда нет автозапуска)
-			if(document.querySelectorAll('#spellerMainWrap #speller__buttons .mistCount')[0].textContent == '-'){
-				updateMistakesCounter();
-			}
+			initMistakesCounter();
 		}
 	});
 
@@ -1494,7 +1653,7 @@
 		// каждый селектор с (атрибутом или без) упаковываем в объект, затем передаём в extractTxt
 		for (var key in walkSelectors){
 
-			var obj = {selector: key}; // указываем селектор
+			var obj = {selector: key, extractHTML: extractHTML}; // указываем селектор
 			if (walkSelectors[key] !== ''){
 				obj.attribute = walkSelectors[key]; // указываем, что извлекать нужно атрибут, а не текст
 			}
@@ -1512,6 +1671,9 @@
 						selector: key,
 						debug: debug,
 						spellerOpts: spellerOptions,
+						skipNotCyr: skipNotCyr,
+						tryRecoverSents: tryRecoverSents,
+						isHTML: extractHTML,
 					};
 					worker.postMessage(toWorker);
 				});
