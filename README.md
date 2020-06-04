@@ -1,5 +1,5 @@
 # spellHelper
-Widget based on user js for automatic spelling on pages viewed
+Widget based on user js for automatic spelling on pages viewed. Powered by Yandex.Speller
 
 Скрипт позволяет проверять орфографию на сайте в автоматическом режиме. Полезно для контент-менеджеров / копирайтеров. 
 
