@@ -30,7 +30,7 @@
 		'example.ru': {'forbidden': ['/admin/'], 'whitelist': ['/']}, // todo: whitelist. Сейчас присутствует для демонстрации
 		'subdomain.example.su': '', // Пока что поддомены нужно перечислять явным образом
 	};
-	//autoDomains[window.location.host] = ''; // ЖЁСТКИЙ АВТОЗАПУСК ДЛЯ ТЕСТА
+	autoDomains[window.location.host] = ''; // ЖЁСТКИЙ АВТОЗАПУСК ДЛЯ ТЕСТА
 
 	// глобальный фильтр по путям
 	var globalPathBlacklist = [
@@ -183,7 +183,7 @@
 					reject(false);
 				}
 
-				html = html.replace(/<[^>]+>/gm, " ");
+				html = html.replace(/<[^>]+>/gm, " . ");
 				resolve(html);
 			});
 		}
@@ -407,6 +407,7 @@
 
 			}).then(function(txt){
 				return new Promise(function(resolve, reject){
+console.log('текст перед cleanTxtArray:', txt);
 					var pro = cleanTxtArray(txt);
 					pro.then(function(txtArr){
 						resolve(txtArr);
@@ -430,8 +431,15 @@
 
 						for (var i = 0; i < txtArr.length; i++){
 							var pr = new Promise(function(resolve, reject){
-								check = spellerSend(txtArr[i]);
+
+var tempIter = i;								
+console.log('Отправка '+tempIter+' из '+txtArr.length);
+console.log('Текст:', txtArr[tempIter]);
+								
+								check = spellerSend(txtArr[tempIter]);
 								check.then(function(checkData){
+									
+console.log('Ответ № '+tempIter+' из '+txtArr.length+':', checkData);
 
 									if (checkData.length == 0){
 										resolve(); // не вернулось ошибок
