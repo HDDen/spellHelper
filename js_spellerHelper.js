@@ -12,7 +12,7 @@
 // При первом открытии виджета / при автоматическом запуске собирается текст с каждого из выбранных селекторов и передаётся в воркер. В воркере текст оптимизируется, разбивается на предложения, формируется в фрагменты. После получения ответа от Спеллера возвращает объект с ошибками.
 // Строим разметку в основном потоке.
 // Ко вниманию принимаются только ошибки, помеченные 'code = 1'. Иногда приходят с кодом = 4, но мной замечены такие срабатывания только на emoji, поэтому отбрасываем их.
-// Также можно игнорировать ошибки, не содержащие кириллицу (часто Спеллер возвращает англоязычные слова, несмотря на флаг 'lang'). Включением переменной skipNotCyr можно фильтровать слова без кириллицы. Также она автоматически переводится в true, если в spellerOptions.lang отсутствует 'en'
+// Также можно игнормровать ошибки, не содержащие кириллицу (часто Спеллер возвращает англоязычные слова, несмотря на флаг 'lang'). Включением переменной skipNotCyr можно фильтровать слова без кириллицы. Также она автоматически переводится в true, если в spellerOptions.lang отсутствует 'en'
 
 
 // Загрузчик, сработает если состояние DOMContentLoaded либо уже load
@@ -1045,7 +1045,12 @@
             // очищаем список найденных ошибок и запускам проверку снова
             var clearResults = clearSpellerResults();
             clearResults.then(function(){
-                mainF();
+                // сначала удаляем предыдущее выделение ошибок
+                var p = remMistakesMark();
+                p.then(function(){
+                    mainF();
+                });
+                
             });
         });
     }
@@ -1070,7 +1075,8 @@
     var setMistakeIgnore = function(el){
         var mistake = el.getAttribute('data-mist');
         if (mistake){
-            addIgnoredMistake(mistake);
+            addIgnoredMistake(mistake); // запоминаем игнор
+            remOneMist(mistake); // снимаем выделение
         }
 
         // фиксируем корневой родитель
@@ -1347,6 +1353,7 @@
             if (mustMarkMistakes == 'false'){
                 markMistakes = false;
                 document.getElementById('markMistakes').checked = false;
+                remMistakesMark(); // удаляем отмеченные ошибки
             } else if (mustMarkMistakes == 'true'){
                 markMistakes = true;
                 document.getElementById('markMistakes').checked = true;
@@ -1409,6 +1416,8 @@
                 markMistakes = true;
             } else {
                 markMistakes = false;
+                // удаляем отмеченные ошибки
+                remMistakesMark();
             }
         }
     }
@@ -1441,6 +1450,9 @@
             markMistakesVal = 'true';
         }
         localStorage.setItem('speller_markMistakes', markMistakesVal);
+        if (markMistakesVal === 'false'){
+            remMistakesMark(); // снимем выделение с найденных
+        }
 
         // теперь грузим в память
         var temp = loadAutostartInMemory();
@@ -1527,7 +1539,11 @@
                         return fullRewriteIgnoredList([]);
                     }).then(function(){
                         loadStoredConfig();
-                        mainF();
+                        // сначала удаление предыдущего выделения ошибок перед перезапуском парсинга
+                        var p = remMistakesMark();
+                        p.then(function(){
+                            mainF();
+                        });
                     });
                 } else if (e.target.classList.contains('mistCount')){
                     // щелчок по индикатору ошибок - нужно назначить активным окно с результатами
@@ -1665,7 +1681,12 @@
     * Выделяет ошибки на странице
     */
     var doMarkMistakes = function(mistakes){
-        var selector = 'body';
+
+        if (debug){
+            console.log('Выделяем следующие ошибки', mistakes);
+        }
+
+        var selector = 'body'; // ограничение выделения
 
         var context = document.querySelector(selector);
         var instance = new Mark(context);
@@ -1673,8 +1694,45 @@
             separateWordSearch: false,
             accuracy: 'exactly'
         });
+
+        window['speller_marks'] = instance;
     }
 
+    /**
+    * Удаляет выделение ошибок
+    * Возвращает промис
+    */
+    var remMistakesMark = function(){
+        return new Promise(function(resolve, reject){
+            console.log('Удаление ошибок');
+            if (typeof window['speller_marks'] !== "undefined"){
+                window['speller_marks'].unmark();
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+    }
+
+    /**
+    * Удаляет одну конкретную ошибку
+    */
+    var remOneMist = function(mistake){
+        if (mistake != ''){
+            if (debug){
+                console.log('Удаляем выделение с «'+mistake+'»');
+            }
+
+            var mists = document.querySelectorAll('mark');
+            if (mists.length > 0){
+                for (var i = 0; i < mists.length; i++){
+                    if (mists[i].textContent == mistake){
+                        mists[i].outerHTML = mistake;
+                    }
+                }
+            }
+        }
+    }
 
     /**
     * Обработчик ответа воркера
