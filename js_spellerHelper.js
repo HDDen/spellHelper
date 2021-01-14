@@ -1,5 +1,5 @@
 // Ограничение одного POST-запроса к Спеллеру - 10000 символов! Поэтому весь извлечённый текст будем дробить на фрагменты, приближенные к лимиту.
-// Максимальную длину можно переопределить, переменная postLength (объявлена в начале скрипта)
+// Максимальную длину можно переопределить, переменная postLength (объявлена в начале скрипта). Это будет влиять на чувствительность; обычно, чем ниже значение, тем больше ошибок определяется, но ниже скорость выполнения проверки.
 // Также можно задать, какие элементы страницы подлежат проверке (переменная walkSelectors)
 // По умолчанию проверка происходит только при открытии виджета.
 // Есть возможность автопроверки на заданных доменах. Настраивается в переменной autoDomains
@@ -693,7 +693,7 @@
     filter: drop-shadow(0 0 1px green);
 }
 #speller__workWindow::before{
-    content: 'Spell Helper v.1.2.1';
+    content: 'spellHelper v.1.2.1';
     font-size: 16px;
     line-height: 25px;
     font-style: italic;
@@ -889,6 +889,23 @@
 }
 #spellerMainWrap .opts__row + .opts__row{
     margin-top: 5px;
+}
+
+/* Копирайт */
+#spellerMainWrap .speller-copyright, #spellerMainWrap .speller-copyright:hover{
+    position: absolute;
+    bottom: 0;
+    width: calc(100% - 10px);
+    text-align: center;
+    font-size: 10px;
+    color: #888888;
+    text-decoration: none;
+    line-height: 12px;
+    font-weight: 400;
+}
+#spellerMainWrap .speller-copyright:hover{
+    color: #000;
+    text-decoration: underline;
 }`;
             document.getElementsByTagName('head')[0].appendChild(widgetStyle);
             // сам виджет
@@ -923,6 +940,7 @@
                         <span class="optionset__button save__domainOpts">Сохранить</span>
                     </div>
                 </div>
+                <a href="https://github.com/HDDen/spellHelper" target="_blank" class="speller-copyright nointercept">github.com/HDDen/spellHelper</a>
             </div>
             <div id="speller-results">
             </div>
@@ -1521,7 +1539,9 @@
                 // отсюда будем рулить кнопками
                 e.stopPropagation();
                 if (e.target.tagName == 'A'){
-                    e.preventDefault();
+                    if (! (e.target.classList.contains('nointercept'))){
+                        e.preventDefault();
+                    }
                 }
 
                 if (e.target.classList.contains('speller__button')){
