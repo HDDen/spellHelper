@@ -32,7 +32,7 @@
     };
     autoDomains[window.location.host] = ''; // ЖЁСТКИЙ АВТОЗАПУСК ДЛЯ ТЕСТА
 
-    // глобальный фильтр по путям
+    // глобальный фильтр по путям (будет запускаться, но не производить проверку)
     var globalPathBlacklist = [
         '/admin',
         '/wp-admin',
@@ -41,6 +41,13 @@
         'vk.com/im', // можно задавать с доменом, а также get-параметрами (проверяем window.location.href)
         'mail.yandex.ru',
         'mail.google.com',
+        '?destination=',
+    ];
+    
+    // на этих url даже не будет стартовать виджет
+    var excludeList = [
+        'amocrm.ru',
+        'my.lptracker.ru',
     ];
 
     var walkSelectors = { // обходить эти селекторы
@@ -693,7 +700,7 @@
     filter: drop-shadow(0 0 1px green);
 }
 #speller__workWindow::before{
-    content: 'spellHelper v.1.2.1';
+    content: 'spellHelper v.1.2.2';
     font-size: 16px;
     line-height: 25px;
     font-style: italic;
@@ -1250,6 +1257,9 @@
 
         if (widget !== null){
             widget.parentNode.removeChild(widget);
+
+            // также удалим ошибки
+            remMistakesMark();
         }
     }
 
@@ -1933,6 +1943,20 @@
     }
 
     // Стартуем!
+    var domain = window.location.host;
+    // фильтр запуска виджета
+    // быстро и грязно, у нас в итоге 3 разных проверки на автозапуск. Нужно исправить.
+    if (excludeList.length){
+        for (var i = 0; i < excludeList.length; i++){
+            if (domain.indexOf(excludeList[i]) > -1){
+                if (debug){
+                    console.log('запрещено по домену '+ excludeList[i] +' в excludeList');
+                }
+                return false;
+            }
+        }
+    }
+
     // Создаем интерфейс, затем, если есть автозапуск для домена, стартуем mainF()
     var initialStart = true; // если запуск без последующего парсинга, ставим класс главному родителю
     var start = createInterface(initialStart);
@@ -1943,7 +1967,6 @@
             resolve();
         });
     }).then(function(){
-        var domain = window.location.host;
         // автозапуск по домену
         if (domain in autoDomains){
             // проверка на запрет запуска по фильтру путей
