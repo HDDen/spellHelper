@@ -48,6 +48,13 @@
     var excludeList = [
         'amocrm.ru',
         'my.lptracker.ru',
+        '/admin/',
+        '/admin?',
+        '/wp-admin',
+        '/administrator',
+        '/edit',
+        '/node/add/',
+        'squoosh.app',
     ];
 
     var walkSelectors = { // обходить эти селекторы
@@ -1948,7 +1955,7 @@
     // быстро и грязно, у нас в итоге 3 разных проверки на автозапуск. Нужно исправить.
     if (excludeList.length){
         for (var i = 0; i < excludeList.length; i++){
-            if (domain.indexOf(excludeList[i]) > -1){
+            if (window.location.href.indexOf(excludeList[i]) > -1){
                 if (debug){
                     console.log('запрещено по домену '+ excludeList[i] +' в excludeList');
                 }
