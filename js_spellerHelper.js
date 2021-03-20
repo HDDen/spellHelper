@@ -75,6 +75,8 @@
 
     var markMistakes = true; // Помечать найденные ошибки
 
+    var highlightSuggestions = true; // Вывод исправлений при наведении
+
     var postLength = 9000; // Длина текста в одном POST-запросе
 
     // предопределяем, чтобы потом закешировать сюда выборку
@@ -707,7 +709,7 @@
     filter: drop-shadow(0 0 1px green);
 }
 #speller__workWindow::before{
-    content: 'spellHelper v.1.2.2';
+    content: 'spellHelper v.1.2.3';
     font-size: 16px;
     line-height: 25px;
     font-style: italic;
@@ -920,6 +922,29 @@
 #spellerMainWrap .speller-copyright:hover{
     color: #000;
     text-decoration: underline;
+}
+
+/* Подсветка предложений */
+.spellerMark:hover{
+    position: relative;
+}
+.spellerMark:hover::after{
+    content: var(--mistake-suggestion);
+    display: inline;
+    width: max-content;
+    box-sizing: border-box;
+    position: absolute;
+    top: calc((1em + 12px) * -1);
+    line-height: 1em;
+    left: 50%;
+    transform: translate(-50%);
+    text-align: center;
+    border: 1px solid #ff8800;
+    padding: 5px;
+    border-radius: 5px;
+    background: linear-gradient(to bottom, #ffbd72, #e67b00, #e67b00, #bb4a00);
+    color: #fff;
+    text-shadow: 0px 1px 1px black;
 }`;
             document.getElementsByTagName('head')[0].appendChild(widgetStyle);
             // сам виджет
@@ -1717,10 +1742,11 @@
     /**
     * Выделяет ошибки на странице
     */
-    var doMarkMistakes = function(mistakes){
+    var doMarkMistakes = function(mistakes, variants){
 
         if (debug){
             console.log('Выделяем следующие ошибки', mistakes);
+            console.log('Варианты для подсветки', variants);
         }
 
         var selector = 'body'; // ограничение выделения
@@ -1729,8 +1755,31 @@
         var instance = new Mark(context);
         instance.mark(mistakes, {
             separateWordSearch: false,
-            accuracy: 'exactly',
-            caseSensitive: true
+            accuracy: {
+                "value": "exactly",
+                "limiters": [",", "."]
+            },
+            caseSensitive: true,
+            className: 'spellerMark',
+            each: function(el){
+
+                if (Object.keys(variants).length){
+                    var suggestion = variants[el.textContent];
+
+                    if (debug){
+                        console.log('suggestion', suggestion);
+                    }
+                    
+                    var style = '';
+                    if (el.hasAttribute('style')){
+                        style = el.getAttribute('style');
+                    }
+                    style = '--mistake-suggestion:"' + suggestion + '";' + style;
+                    
+                    el.setAttribute('style', style);
+                }
+                
+            }
         });
 
         window['speller_marks'] = instance;
@@ -1789,7 +1838,8 @@
         // Если пришли какие-то ошибки
         if (e.data.fixes.length > 0){
             // Пустой массив для наполнения прошедшими проверку ошибками
-            var resultArr = [];
+            //var resultArr = [];
+            window['spellerResultArr'] = []; // делаем доступной из window, чтобы обращаться к массиву из разных частей скрипта
 
             // проверить каждую ошибку на код. Допустим только код 1.
             var tempArr = []; // массив промисов
@@ -1807,11 +1857,11 @@
 
                                 // игнорируем ошибку
                                 if (! (ignoredList.includes(item.word))){
-                                    resultArr.push({word: item.word, 's': item.s[0]});
+                                    window['spellerResultArr'].push({word: item.word, 's': item.s[0]});
                                 }
                                 resolve();
                             } else {
-                                resultArr.push({word: item.word, 's': item.s[0]});
+                                window['spellerResultArr'].push({word: item.word, 's': item.s[0]});
                                 resolve();
                             }
                         });
@@ -1823,7 +1873,7 @@
             // если после фильтрации остались ошибки
             if (tempArr.length){
                 Promise.all(tempArr).then(function(){
-                    if (resultArr.length){
+                    if (window['spellerResultArr'].length){
 
                         // управление полученными результатами
                         // пушим в интерфейс
@@ -1846,22 +1896,22 @@
 
                             // шаблон режется на две части
                             var detailStart = `<details id="det${(Math.random()*1010|0)}" open>
-                                <summary data-selector="${e.data.selector}">${e.data.selector}: ${resultArr.length} ошибок</summary>
+                                <summary data-selector="${e.data.selector}">${e.data.selector}: ${window['spellerResultArr'].length} ошибок</summary>
                                 <div class="mistakeDetails">`;
                             var detailsEnd = `</div>
                                 </details>`;
                             var mistakes = '';
 
                             var tempArr = [];
-                            for (var i = 0; i < resultArr.length; i++){
+                            for (var i = 0; i < window['spellerResultArr'].length; i++){
                                 var tempFunc = function(obj, index){
                                     return new Promise(function(resolve, reject){
-                                        var str = `<p>"${resultArr[i].word}" -> "${resultArr[i].s}"<span class="ignoreMistake" data-mist="${resultArr[i].word}" title="Добавить в игнорируемые"></span></p>`;
+                                        var str = `<p>"${window['spellerResultArr'][i].word}" -> "${window['spellerResultArr'][i].s}"<span class="ignoreMistake" data-mist="${window['spellerResultArr'][i].word}" title="Добавить в игнорируемые"></span></p>`;
                                         mistakes += str;
                                         resolve(str);
                                     });
                                 }
-                                tempArr.push(tempFunc(resultArr[i], i));
+                                tempArr.push(tempFunc(window['spellerResultArr'][i], i));
                             }
 
                             Promise.all(tempArr).then(function(){
@@ -1872,10 +1922,16 @@
                                     // выделяем ошибки на самой странице
                                     if (markMistakes){
                                         var mistakesToMark = [];
-                                        for (var oi = 0; oi < resultArr.length; oi++){
-                                            mistakesToMark.push(resultArr[oi].word);
+                                        var variantsForHighting = new Object;
+                                        for (var oi = 0; oi < window['spellerResultArr'].length; oi++){
+                                            // пушим слово в массив для отметки
+                                            mistakesToMark.push(window['spellerResultArr'][oi].word);
+                                            // доп. массив для подсвечивания при наведении на ошибку
+                                            if (highlightSuggestions){
+                                                variantsForHighting[`${window['spellerResultArr'][oi].word}`] = window['spellerResultArr'][oi].s;
+                                            }
                                         }
-                                        doMarkMistakes(mistakesToMark);
+                                        doMarkMistakes(mistakesToMark, variantsForHighting);
                                     }
                                 });
                             });
