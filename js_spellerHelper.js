@@ -795,22 +795,6 @@
     background-repeat: no-repeat;
     background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHZpZXdCb3g9IjAgMCAxOCAxOCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTkgMS41QzQuODYgMS41IDEuNSA0Ljg2IDEuNSA5QzEuNSAxMy4xNCA0Ljg2IDE2LjUgOSAxNi41QzEzLjE0IDE2LjUgMTYuNSAxMy4xNCAxNi41IDlDMTYuNSA0Ljg2IDEzLjE0IDEuNSA5IDEuNVpNMyA5QzMgNS42ODUgNS42ODUgMyA5IDNDMTAuMzg3NSAzIDExLjY2MjUgMy40NzI1IDEyLjY3NSA0LjI2NzVMNC4yNjc1IDEyLjY3NUMzLjQ3MjUgMTEuNjYyNSAzIDEwLjM4NzUgMyA5Wk05IDE1QzcuNjEyNSAxNSA2LjMzNzUgMTQuNTI3NSA1LjMyNSAxMy43MzI1TDEzLjczMjUgNS4zMjVDMTQuNTI3NSA2LjMzNzUgMTUgNy42MTI1IDE1IDlDMTUgMTIuMzE1IDEyLjMxNSAxNSA5IDE1WiIgZmlsbD0iI0ZGMDAwMCIvPgo8L3N2Zz4K');
 }
-#speller-results .mistakeDetails .findMistake{
-    display: block;
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    top: 5px;
-    right: 22px;
-    cursor: pointer;
-
-    background-position: 0 1px;
-    background-size: 16px;
-    background-repeat: no-repeat;
-    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIuMDA1IDUxMi4wMDUiPjxwYXRoIGQ9Ik01MDUuNzQ5IDQ3NS41ODdsLTE0NS42LTE0NS42YzI4LjIwMy0zNC44MzcgNDUuMTg0LTc5LjEwNCA0NS4xODQtMTI3LjMxN0M0MDUuMzMzIDkwLjkyNiAzMTQuNDEuMDAzIDIwMi42NjYuMDAzUzAgOTAuOTI1IDAgMjAyLjY2OXM5MC45MjMgMjAyLjY2NyAyMDIuNjY3IDIwMi42NjdjNDguMjEzIDAgOTIuNDgtMTYuOTgxIDEyNy4zMTctNDUuMTg0bDE0NS42IDE0NS42YzQuMTYgNC4xNiA5LjYyMSA2LjI1MSAxNS4wODMgNi4yNTFzMTAuOTIzLTIuMDkxIDE1LjA4My02LjI1MWM4LjM0MS04LjM0MSA4LjM0MS0yMS44MjQtLjAwMS0zMC4xNjV6TTIwMi42NjcgMzYyLjY2OWMtODguMjM1IDAtMTYwLTcxLjc2NS0xNjAtMTYwczcxLjc2NS0xNjAgMTYwLTE2MCAxNjAgNzEuNzY1IDE2MCAxNjAtNzEuNzY2IDE2MC0xNjAgMTYweiIvPjwvc3ZnPg==');
-
-    filter: invert(38%) sepia(67%) saturate(384%) hue-rotate(60deg) brightness(94%) contrast(95%);
-}
 
 /* шаблон настроек */
 #spellerMainWrap .spellerOptionSet{
@@ -962,10 +946,36 @@
     color: #fff;
     text-shadow: 0px 1px 1px black;
 }
+
+/* Кнопка перехода к ошибке */
+#speller-results .mistakeDetails .findMistake{
+	min-width: 22px;
+    height: 20px;
+    position: absolute;
+    top: 5px;
+    right: 22px;
+    cursor: pointer;
+    color: #000;
+    font-size: 12px;
+}
+#speller-results .mistakeDetails .findMistake::after{
+    content: '';
+    display: block;
+    min-width: 22px;
+    height: 20px;
+    padding-left: 22px;
+    box-sizing: border-box;
+
+    background-position: 3px 1px;
+    background-size: 16px;
+    background-repeat: no-repeat;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIuMDA1IDUxMi4wMDUiPjxwYXRoIGQ9Ik01MDUuNzQ5IDQ3NS41ODdsLTE0NS42LTE0NS42YzI4LjIwMy0zNC44MzcgNDUuMTg0LTc5LjEwNCA0NS4xODQtMTI3LjMxN0M0MDUuMzMzIDkwLjkyNiAzMTQuNDEuMDAzIDIwMi42NjYuMDAzUzAgOTAuOTI1IDAgMjAyLjY2OXM5MC45MjMgMjAyLjY2NyAyMDIuNjY3IDIwMi42NjdjNDguMjEzIDAgOTIuNDgtMTYuOTgxIDEyNy4zMTctNDUuMTg0bDE0NS42IDE0NS42YzQuMTYgNC4xNiA5LjYyMSA2LjI1MSAxNS4wODMgNi4yNTFzMTAuOTIzLTIuMDkxIDE1LjA4My02LjI1MWM4LjM0MS04LjM0MSA4LjM0MS0yMS44MjQtLjAwMS0zMC4xNjV6TTIwMi42NjcgMzYyLjY2OWMtODguMjM1IDAtMTYwLTcxLjc2NS0xNjAtMTYwczcxLjc2NS0xNjAgMTYwLTE2MCAxNjAgNzEuNzY1IDE2MCAxNjAtNzEuNzY2IDE2MC0xNjAgMTYweiIvPjwvc3ZnPg==');
+
+    filter: invert(38%) sepia(67%) saturate(384%) hue-rotate(60deg) brightness(94%) contrast(95%);
+}
 #speller-results details .mistakeDetails p:hover .findMistake{
     width: auto;
-    padding-left: 20px;
-    font-size: 12px;
+    background: linear-gradient(to right, transparent 0%, antiquewhite 10%);
 }
 #speller-results details .mistakeDetails p:hover .findMistake::after{
     content: 'Показать';    
