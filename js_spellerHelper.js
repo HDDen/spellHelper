@@ -1269,16 +1269,16 @@
                 if (mistakes[newScroll].offsetWidth > 0 && mistakes[newScroll].offsetHeight > 0){
                     var scrollPosition = mistakes[newScroll].getBoundingClientRect().top + window.scrollY - (window.innerHeight / 2);
                     window.scrollTo(0, scrollPosition);
-                    mistakes[newScroll].classList.add('speller__mistakeVisualized');
+                    // пробую визуализировать всё, посмотрю по ощущениям
+                    //mistakes[newScroll].classList.add('speller__mistakeVisualized');
                 } else {
                     window.scrollTo(0, 0);
                     console.log('Похоже, элемент за пределами экрана');
                 }
 
                 // продолжение визуализации. Если мы повторно скроллим к той же ошибке, нужо обозначить её присутствие на странице
-                if ( (scrolledTo == newScroll) && (mistakes.length < 2) ){
-                    // пробую визуализировать всё, посмотрю по ощущениям 
-                    //mistakes[newScroll].classList.add('speller__mistakeVisualized');
+                if ( (scrolledTo == newScroll) && (mistakes.length < 2) ){ 
+                    mistakes[newScroll].classList.add('speller__mistakeVisualized');
                 }
 
                 // запоминаем позицию скролла
