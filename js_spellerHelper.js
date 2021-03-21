@@ -1890,7 +1890,7 @@
             separateWordSearch: false,
             accuracy: {
                 "value": "exactly",
-                "limiters": [",", ".", "!", "?", ":", ";", "(", ")"]
+                "limiters": [",", ".", "!", "?", ":", ";", "(", ")", "-"]
             },
             caseSensitive: true,
             className: 'spellerMark',
