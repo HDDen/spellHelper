@@ -709,7 +709,7 @@
     filter: drop-shadow(0 0 1px green);
 }
 #speller__workWindow::before{
-    content: 'spellHelper v.1.2.3';
+    content: 'spellHelper v.1.2.4';
     font-size: 16px;
     line-height: 25px;
     font-style: italic;
@@ -767,7 +767,7 @@
     position: relative;
     font-size: 16px;
     line-height: 20px;
-    padding: 5px 25px 5px 5px;
+    padding: 5px 45px 5px 5px;
     counter-increment: mistakes-position;
 }
 #speller-results details .mistakeDetails p::before{
@@ -794,6 +794,22 @@
     background-position: 0 0;
     background-repeat: no-repeat;
     background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHZpZXdCb3g9IjAgMCAxOCAxOCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTkgMS41QzQuODYgMS41IDEuNSA0Ljg2IDEuNSA5QzEuNSAxMy4xNCA0Ljg2IDE2LjUgOSAxNi41QzEzLjE0IDE2LjUgMTYuNSAxMy4xNCAxNi41IDlDMTYuNSA0Ljg2IDEzLjE0IDEuNSA5IDEuNVpNMyA5QzMgNS42ODUgNS42ODUgMyA5IDNDMTAuMzg3NSAzIDExLjY2MjUgMy40NzI1IDEyLjY3NSA0LjI2NzVMNC4yNjc1IDEyLjY3NUMzLjQ3MjUgMTEuNjYyNSAzIDEwLjM4NzUgMyA5Wk05IDE1QzcuNjEyNSAxNSA2LjMzNzUgMTQuNTI3NSA1LjMyNSAxMy43MzI1TDEzLjczMjUgNS4zMjVDMTQuNTI3NSA2LjMzNzUgMTUgNy42MTI1IDE1IDlDMTUgMTIuMzE1IDEyLjMxNSAxNSA5IDE1WiIgZmlsbD0iI0ZGMDAwMCIvPgo8L3N2Zz4K');
+}
+#speller-results .mistakeDetails .findMistake{
+    display: block;
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 5px;
+    right: 22px;
+    cursor: pointer;
+
+    background-position: 0 1px;
+    background-size: 16px;
+    background-repeat: no-repeat;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIuMDA1IDUxMi4wMDUiPjxwYXRoIGQ9Ik01MDUuNzQ5IDQ3NS41ODdsLTE0NS42LTE0NS42YzI4LjIwMy0zNC44MzcgNDUuMTg0LTc5LjEwNCA0NS4xODQtMTI3LjMxN0M0MDUuMzMzIDkwLjkyNiAzMTQuNDEuMDAzIDIwMi42NjYuMDAzUzAgOTAuOTI1IDAgMjAyLjY2OXM5MC45MjMgMjAyLjY2NyAyMDIuNjY3IDIwMi42NjdjNDguMjEzIDAgOTIuNDgtMTYuOTgxIDEyNy4zMTctNDUuMTg0bDE0NS42IDE0NS42YzQuMTYgNC4xNiA5LjYyMSA2LjI1MSAxNS4wODMgNi4yNTFzMTAuOTIzLTIuMDkxIDE1LjA4My02LjI1MWM4LjM0MS04LjM0MSA4LjM0MS0yMS44MjQtLjAwMS0zMC4xNjV6TTIwMi42NjcgMzYyLjY2OWMtODguMjM1IDAtMTYwLTcxLjc2NS0xNjAtMTYwczcxLjc2NS0xNjAgMTYwLTE2MCAxNjAgNzEuNzY1IDE2MCAxNjAtNzEuNzY2IDE2MC0xNjAgMTYweiIvPjwvc3ZnPg==');
+
+    filter: invert(38%) sepia(67%) saturate(384%) hue-rotate(60deg) brightness(94%) contrast(95%);
 }
 
 /* шаблон настроек */
@@ -945,6 +961,23 @@
     background: linear-gradient(to bottom, #ffbd72, #e67b00, #e67b00, #bb4a00);
     color: #fff;
     text-shadow: 0px 1px 1px black;
+}
+#speller-results details .mistakeDetails p:hover .findMistake{
+    width: auto;
+    padding-left: 20px;
+    font-size: 12px;
+}
+#speller-results details .mistakeDetails p:hover .findMistake::after{
+    content: 'Показать';    
+}
+/*.spellerMark{
+    background: rgb(255 190 69 / 76%);
+}*/
+@keyframes speller__visualizeMistake{
+    8% {box-shadow: 0 0 0px 75px #ff0} /*rgb(255 190 69 / 76%)*/
+}
+.speller__mistakeVisualized{
+    animation: speller__visualizeMistake 3000ms 1 ease-out alternate;
 }`;
             document.getElementsByTagName('head')[0].appendChild(widgetStyle);
             // сам виджет
@@ -1157,6 +1190,103 @@
             if (!mistakesLeft){
                 mistakeCoreParent.removeAttribute('open');
             }
+        }
+    }
+
+    /**
+     * Скроллим к ошибке
+     */
+    var showMistake = function(el){
+        var mistake = el.getAttribute('data-mist');
+        if (debug){
+            console.log('Скроллим к ошибке '+mistake);
+        }
+        if (mistake){
+
+            // получим все элементы с этой ошибкой и просто выведем в консоль
+            var mistakes = document.querySelectorAll(`.spellerMark[data-mistake="${mistake}"]`);
+
+            if (debug){
+                console.log('Элементы с ошибками',mistakes, 'селектор ' + `.spellerMark[data-mistake="${mistake}"]`);
+            }
+
+            // пока по-простому - скролл только к первой ошибке
+            if (mistakes.length){
+                // будем запоминать в window, к какой ошибке (и какой её экземпляр) мы скроллили
+                // если это была та же ошибка, скроллить к следующему экземпляру
+                
+                // назначаем умолчание
+                if (window.spellerScrolledMistake === undefined){
+                    window.spellerScrolledMistake = {
+                        mistakeText: '',
+                        mistakeIndex: -1,
+                    };
+                }
+
+                // поиск, куда скроллить
+                // в цикле ищем видимого на странице кандидата
+                var scrolledTo = window.spellerScrolledMistake.mistakeIndex;
+                var newScroll = scrolledTo;
+
+                if (window.spellerScrolledMistake.mistakeText == mistake){
+                    // скроллим к той же ошибке, но нужно понять, двигаемся дальше по nodeList или начинаем с 0
+                    
+                    if ((scrolledTo + 1) < mistakes.length){
+                        newScroll = scrolledTo + 1;
+                        
+                        // нужно двигаться дальше по выборке, если очередной элемент невидим
+                        while (mistakes[newScroll].offsetWidth < 1 && mistakes[newScroll].offsetHeight < 1){
+                            if (newScroll < mistakes.length){
+                                newScroll++;
+                            } else {
+                                newScroll = 0;
+                            }
+                        }
+                    } else {
+                        newScroll = 0;
+                    }
+
+                    if (debug){
+                        console.log('Скролл к элементу', mistakes[newScroll], 'позиция скролла', "\u{2191}" + mistakes[newScroll].offsetHeight + ' x ' + mistakes[newScroll].offsetWidth + "\u{2192}");
+                    }
+
+                } else {
+                    scrolledTo = window.spellerScrolledMistake.mistakeIndex = -1; // для детекта повторного перехода к тому же элементу
+                    newScroll = 0;
+                }
+
+
+                
+                // добавим визуализации. Сейчас снимем класс, затем - добавим, если скроллим к той же самой ошибке
+                var mistakeVisualized = document.querySelectorAll('.speller__mistakeVisualized');
+                if (mistakeVisualized.length){
+                    for (var i = 0; i < mistakeVisualized.length; i++){
+                        mistakeVisualized[i].classList.remove('speller__mistakeVisualized');
+                    }
+                }
+
+                // скролл
+                if (mistakes[newScroll].offsetWidth > 0 && mistakes[newScroll].offsetHeight > 0){
+                    var scrollPosition = mistakes[newScroll].getBoundingClientRect().top + window.scrollY - (window.innerHeight / 2);
+                    window.scrollTo(0, scrollPosition);
+                    mistakes[newScroll].classList.add('speller__mistakeVisualized');
+                } else {
+                    window.scrollTo(0, 0);
+                    console.log('Похоже, элемент за пределами экрана');
+                }
+
+                // продолжение визуализации. Если мы повторно скроллим к той же ошибке, нужо обозначить её присутствие на странице
+                if ( (scrolledTo == newScroll) && (mistakes.length < 2) ){
+                    // пробую визуализировать всё, посмотрю по ощущениям 
+                    //mistakes[newScroll].classList.add('speller__mistakeVisualized');
+                }
+
+                // запоминаем позицию скролла
+                window.spellerScrolledMistake.mistakeIndex = newScroll;
+                window.spellerScrolledMistake.mistakeText = mistake;
+            }
+        } else if (debug){
+            console.log('Ошибка не обнаружена!');
         }
     }
 
@@ -1592,6 +1722,9 @@
                 } else if (e.target.classList.contains('ignoreMistake')){
                     // игнорирование этой ошибки
                     setMistakeIgnore(e.target);
+                } else if (e.target.classList.contains('findMistake')){
+                    // поиск ошибки на странице
+                    showMistake(e.target);
                 } else if (e.target.classList.contains('unfilterMist')){
                     // удаление ошибки из списка игнорируемых
                     unignoreMistake(e.target);
@@ -1757,12 +1890,14 @@
             separateWordSearch: false,
             accuracy: {
                 "value": "exactly",
-                "limiters": [",", "."]
+                "limiters": [",", ".", "!", "?", ":", ";", "(", ")"]
             },
             caseSensitive: true,
             className: 'spellerMark',
             each: function(el){
-
+                // пропишем текст ошибки в data-атрибут
+                el.setAttribute('data-mistake', el.textContent);
+                // добавляем подсказку к элементу
                 if (Object.keys(variants).length){
                     var suggestion = variants[el.textContent];
 
@@ -1778,7 +1913,6 @@
                     
                     el.setAttribute('style', style);
                 }
-                
             }
         });
 
@@ -1906,7 +2040,7 @@
                             for (var i = 0; i < window['spellerResultArr'].length; i++){
                                 var tempFunc = function(obj, index){
                                     return new Promise(function(resolve, reject){
-                                        var str = `<p>"${window['spellerResultArr'][i].word}" -> "${window['spellerResultArr'][i].s}"<span class="ignoreMistake" data-mist="${window['spellerResultArr'][i].word}" title="Добавить в игнорируемые"></span></p>`;
+                                        var str = `<p>"${window['spellerResultArr'][i].word}" -> "${window['spellerResultArr'][i].s}"<span class="findMistake" data-mist="${window['spellerResultArr'][i].word}" title="Показать на странице"></span><span class="ignoreMistake" data-mist="${window['spellerResultArr'][i].word}" title="Добавить в игнорируемые"></span></p>`;
                                         mistakes += str;
                                         resolve(str);
                                     });
